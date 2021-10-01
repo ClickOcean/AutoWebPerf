@@ -92,7 +92,7 @@ class WebPageTestGatherer extends Gatherer {
       'lighthouse.RenderBlockingResources': 'data.lighthouse.audits["render-blocking-resources"].numericValue',
       'lighthouse.UnusedCSS': 'data.lighthouse.audits["unused-css-rules"].numericValue',
       // 'lighthouse.UseWebPImages': 'data.lighthouse.audits["uses-webp-images"].numericValue',
-      'lighthouse.UseWebPImages': 'data.lighthouse.audits["modern-image-formats"].numericValue',
+      'lighthouse.ModernImageFormats': 'data.lighthouse.audits["modern-image-formats"].numericValue',
       'lighthouse.UseOptimizedImages': 'data.lighthouse.audits["uses-optimized-images"].numericValue',
       'lighthouse.OffscreenImages': 'data.lighthouse.audits["offscreen-images"].numericValue',
       'lighthouse.InstallableManifest': 'data.lighthouse.audits["installable-manifest"].numericValue',
