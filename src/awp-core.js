@@ -520,79 +520,85 @@ class AutoWebPerf {
 
     // Default filter for penging results only.
     if (!options.filters || options.filters.length === 0) {
-      results = results.filter(result => {
-        return result.status === Status.SUBMITTED || result.status === Status.ERROR;
-      });
+      results = results
+          .sort((a, b) => parseInt(a.modifiedTimestamp) - parseInt(b.modifiedTimestamp))
+          .filter(result => result.status === Status.SUBMITTED || result.status === Status.ERROR);
     }
     console.log(`Retrieving ${results.length} result(s).`);
 
-    // FIXME: Add batch gathering support.
+    const totalResults = results;
 
-    let count = 0;
-    for (let i=0; i<results.length; i++) {
-      let result = results[i];
-      this.log(`Retrieve: id=${result.id}`);
-      this.logDebug('AutoWebPerf::retrieve, result=\n', result);
-      result.errors = result.errors || [];
+    const BATCH_SIZE = 10;
 
-      // Before retriving the result.
-      extResponse = this.runExtensions(extensions, 'beforeRetrieve',
-          {result: result}, options);
-      result.errors = result.errors.concat(extResponse.errors);
+    for (let i = 0; i < Math.ceil(totalResults.length / BATCH_SIZE); i++) {
+      const results = totalResults.slice(i*BATCH_SIZE, i*BATCH_SIZE + BATCH_SIZE);
+      console.log(`Retrieving batch ${results.length} result(s).`);
 
-      let statuses = [];
-      let newResult = result;
+      for (let i=0; i<results.length; i++) {
+        let result = results[i];
+        this.log(`Retrieve: id=${result.id}`);
+        this.logDebug('AutoWebPerf::retrieve, result=\n', result);
+        result.errors = result.errors || [];
 
-      if (result.status !== Status.RETRIEVED) {
-        newResult.modifiedTimestamp = Date.now();
+        // Before retriving the result.
+        extResponse = this.runExtensions(extensions, 'beforeRetrieve',
+            {result: result}, options);
+        result.errors = result.errors.concat(extResponse.errors);
+
+        let statuses = [];
+        let newResult = result;
+
+        if (result.status !== Status.RETRIEVED) {
+          newResult.modifiedTimestamp = Date.now();
+        }
+
+        // Interate through all gatherers.
+        let gathererNames = this.overallGathererNames.concat(
+            this.parseGathererNames(result.gatherer));
+        [...new Set(gathererNames)].forEach(gathererName => {
+          if (!result[gathererName]) return;
+          if (result[gathererName].status === Status.RETRIEVED) return;
+
+          let response = this.getGatherer(gathererName).retrieve(
+              result, {debug: true});
+          statuses.push(response.status);
+          newResult[gathererName] = response;
+
+          this.log(`Retrieve: ${gathererName} result: status=${response.status}`);
+        });
+
+        // Collect errors from all gatherers.
+        newResult.errors = result.errors.concat(this.getOverallErrors(newResult));
+
+        // Update overall status.
+        newResult.status =  this.getOverallStatus(statuses);
+
+        // After retrieving the result.
+        extResponse = this.runExtensions(extensions, 'afterRetrieve',
+            {result: newResult}, options);
+        newResult.errors = newResult.errors.concat(extResponse.errors);
+
+        this.log(`Retrieve: overall status=${newResult.status}`);
+        this.logDebug('AutoWebPerf::retrieve, statuses=\n', statuses);
+        this.logDebug('AutoWebPerf::retrieve, newResult=\n', newResult);
+
+        resultsToUpdate.push(newResult);
+
+        // Batch update to the connector.
+        if (this.batchUpdateBuffer &&
+            resultsToUpdate.length >= this.batchUpdateBuffer) {
+          await this.connector.updateResultList(resultsToUpdate, options);
+          this.log(
+              `AutoWebPerf::retrieve, batch appends ` +
+              `${resultsToUpdate.length} results.`);
+
+          resultsToUpdate = [];
+        }
       }
 
-      // Interate through all gatherers.
-      let gathererNames = this.overallGathererNames.concat(
-          this.parseGathererNames(result.gatherer));
-      [...new Set(gathererNames)].forEach(gathererName => {
-        if (!result[gathererName]) return;
-        if (result[gathererName].status === Status.RETRIEVED) return;
-
-        let response = this.getGatherer(gathererName).retrieve(
-            result, {debug: true});
-        statuses.push(response.status);
-        newResult[gathererName] = response;
-
-        this.log(`Retrieve: ${gathererName} result: status=${response.status}`);
-      });
-
-      // Collect errors from all gatherers.
-      newResult.errors = result.errors.concat(this.getOverallErrors(newResult));
-
-      // Update overall status.
-      newResult.status =  this.getOverallStatus(statuses);
-
-      // After retrieving the result.
-      extResponse = this.runExtensions(extensions, 'afterRetrieve',
-          {result: newResult}, options);
-      newResult.errors = newResult.errors.concat(extResponse.errors);
-
-      this.log(`Retrieve: overall status=${newResult.status}`);
-      this.logDebug('AutoWebPerf::retrieve, statuses=\n', statuses);
-      this.logDebug('AutoWebPerf::retrieve, newResult=\n', newResult);
-
-      resultsToUpdate.push(newResult);
-
-      // Batch update to the connector.
-      if (this.batchUpdateBuffer &&
-          resultsToUpdate.length >= this.batchUpdateBuffer) {
-        await this.connector.updateResultList(resultsToUpdate, options);
-        this.log(
-            `AutoWebPerf::retrieve, batch appends ` +
-            `${resultsToUpdate.length} results.`);
-
-        resultsToUpdate = [];
-      }
+      // Update back to the result list.
+      await this.connector.updateResultList(resultsToUpdate, options);
     }
-
-    // Update back to the result list.
-    await this.connector.updateResultList(resultsToUpdate, options);
 
     // After retriving all results.
     // FIXME: run the extensions before updating the list back to the connector.
