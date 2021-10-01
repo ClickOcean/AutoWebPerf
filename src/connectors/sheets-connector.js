@@ -250,31 +250,8 @@ class SheetsConnector extends Connector {
         rowCount: Math.max(rowsToAdd.length + 1, sheet.rowCount),
         columnCount: sheet.columnCount,
       });
-
-      let success = false;
-
-      while (!success) {
-          try {
-              await sheet.addRows(rowsToAdd);
-              success = true;
-          } catch(e) {
-              await new Promise(resolve => setTimeout(resolve, 10000));
-          }
-      }
-
-        success = false;
-
-        while (!success) {
-
-            try {
-                 await sheet.saveUpdatedCells();
-                success = true;
-            } catch(e) {
-                await new Promise(resolve => setTimeout(resolve, 10000));
-            }
-
-        }
-
+      await sheet.addRows(rowsToAdd);
+      await sheet.saveUpdatedCells();
     }
 
   }

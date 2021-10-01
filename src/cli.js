@@ -113,6 +113,7 @@ async function begin() {
   let gatherers = argv['gatherers'] ? argv['gatherers'].split(',') : null;
   let extensions = argv['extensions'] ? argv['extensions'].split(',') : [];
   let runByBatch = argv['batch-mode'] ?  true : false;
+  let batchUpdateBuffer = argv['batch-update-buffer'];
   // let envVars = parseVars(argv['envVars']);
   let debug = argv['debug'];
   let verbose = argv['verbose'];
@@ -166,6 +167,7 @@ async function begin() {
       envVars: envVars,
       verbose: verbose,
       debug: debug,
+      batchUpdateBuffer: batchUpdateBuffer,
     };
   }
 
@@ -180,6 +182,7 @@ async function begin() {
   let options = {
     filters: filters,
     runByBatch: runByBatch,
+    batchUpdateBuffer: batchUpdateBuffer,
     overrideResults: overrideResults,
     timerInterval: timerInterval,
     activateOnly: activateOnly,
