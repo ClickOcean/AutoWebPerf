@@ -91,12 +91,13 @@ class WebPageTestGatherer extends Gatherer {
       'lighthouse.ThirdParty': 'data.lighthouse.audits["third-party-summary"].details.summary.wastedBytes',
       'lighthouse.RenderBlockingResources': 'data.lighthouse.audits["render-blocking-resources"].numericValue',
       'lighthouse.UnusedCSS': 'data.lighthouse.audits["unused-css-rules"].numericValue',
-      'lighthouse.UseWebPImages': 'data.lighthouse.audits["uses-webp-images"].numericValue',
+      // 'lighthouse.UseWebPImages': 'data.lighthouse.audits["uses-webp-images"].numericValue',
+      'lighthouse.UseWebPImages': 'data.lighthouse.audits["modern-image-formats"].numericValue',
       'lighthouse.UseOptimizedImages': 'data.lighthouse.audits["uses-optimized-images"].numericValue',
       'lighthouse.OffscreenImages': 'data.lighthouse.audits["offscreen-images"].numericValue',
       'lighthouse.InstallableManifest': 'data.lighthouse.audits["installable-manifest"].numericValue',
       'lighthouse.ServiceWorker': 'data.lighthouse.audits["service-worker"].numericValue',
-      'lighthouse.WorksOffline': 'data.lighthouse.audits["works-offline"].numericValue',
+      // 'lighthouse.WorksOffline': 'data.lighthouse.audits["works-offline"].numericValue',
 
       // WebPageTest Timing metrics
       'TimeToFirstByte': 'data.median.firstView.TTFB',
