@@ -283,7 +283,7 @@ class AutoWebPerf {
    * Parse the given gatherer name in a single string, comma-separated or
    * array format, and return an array of gathererNames.
    * @param {object} gathererName
-   * @return {Array<string>} Array of gatherer names. 
+   * @return {Array<string>} Array of gatherer names.
    */
   parseGathererNames(gathererName) {
     if (!gathererName) return [];
@@ -465,7 +465,7 @@ class AutoWebPerf {
     let isRunning = false;
 
     // Set timer interval as every 10 mins by default.
-    let timerInterval = options.timerInterval ? 
+    let timerInterval = options.timerInterval ?
         parseInt(options.timerInterval) : 60 * 10;
 
     if (options.verbose) {
@@ -521,7 +521,7 @@ class AutoWebPerf {
     // Default filter for penging results only.
     if (!options.filters || options.filters.length === 0) {
       results = results.filter(result => {
-        return result.status === Status.SUBMITTED;
+        return result.status === Status.SUBMITTED || result.status === Status.ERROR;
       });
     }
     console.log(`Retrieving ${results.length} result(s).`);
@@ -542,7 +542,10 @@ class AutoWebPerf {
 
       let statuses = [];
       let newResult = result;
-      newResult.modifiedTimestamp = Date.now();
+
+      if (result.status !== Status.RETRIEVED) {
+        newResult.modifiedTimestamp = Date.now();
+      }
 
       // Interate through all gatherers.
       let gathererNames = this.overallGathererNames.concat(
@@ -585,7 +588,7 @@ class AutoWebPerf {
             `${resultsToUpdate.length} results.`);
 
         resultsToUpdate = [];
-      }      
+      }
     }
 
     // Update back to the result list.
@@ -698,7 +701,7 @@ class AutoWebPerf {
 
         // Collect metrics from all gatherers.
         let gathererNames = this.parseGathererNames(test.gatherer);
-        gathererNames = gathererNames.concat(this.parseGathererNames(options.gatherer));          
+        gathererNames = gathererNames.concat(this.parseGathererNames(options.gatherer));
         [...new Set(gathererNames)].forEach(gathererName =>  {
           let response = this.runGatherer(test, gathererName, options);
           if (response) {
@@ -727,7 +730,7 @@ class AutoWebPerf {
         // Batch update to the connector if the buffer is full.
         if (this.batchUpdateBuffer &&
             resultsToUpdate.length >= this.batchUpdateBuffer) {
-          await this.connector.appendResultList(resultsToUpdate, options);          
+          await this.connector.appendResultList(resultsToUpdate, options);
           this.log(`AutoWebPerf::retrieve, batch appends ` +
               `${resultsToUpdate.length} results.`);
           resultsToUpdate = [];

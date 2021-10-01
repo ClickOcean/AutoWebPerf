@@ -22,6 +22,46 @@ const flattenObject = require('../../src/utils/flatten-object');
 const Connector = require('./connector');
 const { GoogleSpreadsheet } = require('google-spreadsheet');
 
+const build = (keys, value, obj) => {
+
+    if (!obj) {
+        obj = {};
+    }
+
+  if (typeof obj === 'string') {
+    if ((obj.startsWith('[') && obj.endsWith(']')) || (obj.startsWith('{') && obj.endsWith('}'))) {
+      obj = JSON.parse(obj);
+    }
+  }
+
+  if (keys.length === 1) {
+        let n = parseInt(keys[0]);
+
+        if (typeof n === 'number' && !isNaN(n)) {
+            obj[n] = value;
+        } else {
+
+            if (Array.isArray(obj[keys[0]])) {
+              if (typeof value === 'string' && value.startsWith('[') && value.endsWith(']')) {
+                obj[keys[0]] = [...obj[keys[0]], ...JSON.parse(value)];
+              }
+            }
+            else if (typeof obj[keys[0]] === 'object') {
+                if (typeof value === 'string') {
+                    obj[keys[0]] = { ...obj[keys[0]], ...JSON.parse(value) };
+                }
+            } else {
+                obj[keys[0]] = value;
+            }
+        }
+
+    } else {
+        obj[keys[0]] = build(keys.slice(1), value, obj[keys[0]] || {});
+    }
+
+    return obj;
+};
+
 /**
  * the connector handles read and write actions with GoogleSheets as a data
  * store.
@@ -45,7 +85,7 @@ class SheetsConnector extends Connector {
   async getSheet(sheetId) {
     const doc = new GoogleSpreadsheet(sheetId);
     await doc.useServiceAccountAuth(require(this.basedir + '/' + this.keyFilename));
-    await doc.loadInfo(); // loads document properties and worksheets    
+    await doc.loadInfo(); // loads document properties and worksheets
     return doc;
   }
 
@@ -118,7 +158,7 @@ class SheetsConnector extends Connector {
   }
 
   async updateSheetData(sheet, newObjs) {
-    newObjs = this.stringifyRows(newObjs);    
+    newObjs = this.stringifyRows(newObjs);
     await this.updateHeaders(sheet, newObjs);
     const rows = await sheet.getRows();
 
@@ -176,7 +216,7 @@ class SheetsConnector extends Connector {
         }
       };
       headers.forEach(header => {
-        obj[header] = row[header];
+        obj = build(header.split('.'), row[header], obj);
       });
       output.push(obj);
     });
@@ -188,7 +228,7 @@ class SheetsConnector extends Connector {
     results.forEach(result => {
       rowsToAdd.push(flattenObject(result));
     });
-    rowsToAdd = this.stringifyRows(rowsToAdd);    
+    rowsToAdd = this.stringifyRows(rowsToAdd);
     await this.updateHeaders(sheet, rowsToAdd);
 
     if (this.debug) {
@@ -202,6 +242,7 @@ class SheetsConnector extends Connector {
 
     if (overrideResults) {
       await sheet.clear();
+      await this.updateHeaders(sheet, rowsToAdd);
     }
 
     if (rowsToAdd && rowsToAdd.length > 0) {
@@ -209,9 +250,33 @@ class SheetsConnector extends Connector {
         rowCount: Math.max(rowsToAdd.length + 1, sheet.rowCount),
         columnCount: sheet.columnCount,
       });
-      await sheet.addRows(rowsToAdd);
-      await sheet.saveUpdatedCells();  
+
+      let success = false;
+
+      while (!success) {
+          try {
+              await sheet.addRows(rowsToAdd);
+              success = true;
+          } catch(e) {
+              await new Promise(resolve => setTimeout(resolve, 10000));
+          }
+      }
+
+        success = false;
+
+        while (!success) {
+
+            try {
+                 await sheet.saveUpdatedCells();
+                success = true;
+            } catch(e) {
+                await new Promise(resolve => setTimeout(resolve, 10000));
+            }
+
+        }
+
     }
+
   }
 
   readInObject(object, _parentProperty, previousResult) {
@@ -256,9 +321,9 @@ class SheetsConnector extends Connector {
     });
 
     await this.updateSheetData(await this.getTestsSheet(), rowsToAdd);
-    this.tests = null;    
+    this.tests = null;
   }
-  
+
   /**
    * Get all results.
    * @param  {Object} options
@@ -308,7 +373,7 @@ class SheetsConnector extends Connector {
           `file at ${this.resultsPath}`);
     }
 
-    await this.writeSheetData(await this.getResultsSheet(), newResults, 
+    await this.writeSheetData(await this.getResultsSheet(), newResults,
         options.overrideResults);
 
     // Reset the results json cache.
@@ -321,21 +386,29 @@ class SheetsConnector extends Connector {
    * @param {Object} options
    */
   async updateResultList(newResults, options) {
-    if(!this.results)
-      this.authorize();
+    // if(!this.results)
+    //   this.authorize();
 
-    let results = this.getResultList();
-    let idToResults = {};
+    // let results = await this.getResultList();
+    // let idToResults = {};
+    console.log('newResults', newResults);
 
-    newResults.forEach(result => {
-      idToResults[result.id] = result;
+    // newResults.forEach(result => {
+    //   idToResults[result.id] = result;
+    // });
+    //
+    // results = results.map(result => {
+    //   return idToResults[result.id] || result;
+    // });
+
+    var rowsToAdd = [];
+    newResults.forEach(test => {
+      rowsToAdd.push(flattenObject(test));
     });
 
-    results = results.map(result => {
-      return idToResults[result.id] || result;
-    });
-
-    // TODO: write back to Sheets.
+    console.log('updateResultList:');
+    // await this.writeSheetData(await this.getResultsSheet(), newResults, options.overrideResults);
+    await this.updateSheetData(await this.getResultsSheet(), rowsToAdd);
 
     // Reset the results json cache.
     this.results = null;
