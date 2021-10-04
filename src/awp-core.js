@@ -580,7 +580,12 @@ class AutoWebPerf {
       // Batch update to the connector.
       if (this.batchUpdateBuffer &&
           resultsToUpdate.length >= this.batchUpdateBuffer) {
-        await this.connector.updateResultList(resultsToUpdate, options);
+        try {
+          await this.connector.updateResultList(resultsToUpdate, options);
+        } catch(e) {
+          console.log(`AutoWebPerf::retrieve, Error updating results: ${e.stack}`);
+          await new Promise(resolve => setTimeout(resolve, 30000));
+        }
         this.log(
             `AutoWebPerf::retrieve, batch appends ` +
             `${resultsToUpdate.length} results.`);
