@@ -733,6 +733,8 @@ class AutoWebPerf {
               `${resultsToUpdate.length} results.`);
           resultsToUpdate = [];
         }
+
+        console.log(`AutoWebPerf::run ${tests.length - i - 1} left`);
       }
     }
 
